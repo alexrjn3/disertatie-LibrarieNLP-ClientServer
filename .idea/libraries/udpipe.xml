@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="udpipe">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/../bin-win64/java/udpipe.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
