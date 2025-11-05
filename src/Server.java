@@ -13,9 +13,14 @@ public class Server {
             ServerSocket ss = new ServerSocket(5000);
             for (;;) {
                 Socket cs = ss.accept();
+
+
                 FirClient firPtClient = new FirClient(cs);
                 firPtClient.start();
-                System.out.println("Client conectat!");
+                //info client:
+                String clientInfo = cs.getInetAddress().getHostAddress() + ":" + cs.getPort();
+                System.out.println("Client conectat: " + clientInfo);
+
             }
         } catch (Exception e) {
             e.printStackTrace();

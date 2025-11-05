@@ -18,9 +18,13 @@ public class Client {
         try {
             cs = new Socket("localhost", 5000);
             System.out.println("Conectat la server...");
-
             bfr = new BufferedReader(new InputStreamReader(cs.getInputStream()));
             pw = new PrintWriter(cs.getOutputStream());
+            String linieInit;
+            while ((linieInit = bfr.readLine()) != null) {
+                if (linieInit.equals("<END>")) break;
+                System.out.println(linieInit);
+            }
 
             for (;;) {
                 System.out.println("\nIntrodu textul (sau scrie STOP pentru a ieși):");

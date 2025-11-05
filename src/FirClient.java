@@ -16,9 +16,10 @@ public class FirClient extends Thread {
     private PrintWriter pw;
     private static Model model;
     private static Pipeline pipeline;
+    public static List<String> listaCuvinte = Collections.synchronizedList(new ArrayList<>());
 
     // Lista cuvintelor distincte pentru fiecare client
-    private List<String> listaCuvinte = new ArrayList<>();
+
 
     public FirClient(Socket clientsock) {
         try {
@@ -43,6 +44,16 @@ public class FirClient extends Thread {
     public void run() {
         String textIn;
         try {
+            if (!listaCuvinte.isEmpty()) {
+                pw.println("Cuvinte existente pe server (" + listaCuvinte.size() + "):");
+                pw.println(String.join(", ", listaCuvinte));
+                pw.println("<END>");
+                pw.flush();
+            } else {
+                pw.println("Lista de cuvinte este momentan goală.");
+                pw.println("<END>");
+                pw.flush();
+            }
             for (;;) {
                 textIn = bfr.readLine();
                 if (textIn == null || textIn.equals("")) break;
@@ -79,6 +90,44 @@ public class FirClient extends Thread {
                     continue;
                 }
 
+                // --- Cazul 3:
+                if (textIn.toLowerCase().startsWith("sterge ")) {
+                    String cuvant = textIn.substring(7).trim().toLowerCase();
+                    if (listaCuvinte.remove(cuvant)) {
+                        pw.println("Cuvantul \"" + cuvant + "\" a fost sters din lista.");
+                    } else {
+                        pw.println("Cuvantul \"" + cuvant + "\" nu exista in lista.");
+                    }
+                    pw.println(String.join(", ", listaCuvinte));
+                    pw.println("<END>");
+                    pw.flush();
+                    continue;
+                }
+
+                //Cazul 4:
+                if (textIn.toLowerCase().startsWith("modifica ")) {
+                    String[] parti = textIn.substring(9).trim().toLowerCase().split("\\s+", 2);
+                    if (parti.length < 2) {
+                        pw.println("Format invalid. Foloseste: modifica <vechiul> <noul>");
+                    } else {
+                        String vechi = parti[0];
+                        String nou = parti[1];
+                        if (listaCuvinte.contains(vechi)) {
+                            listaCuvinte.remove(vechi);
+                            listaCuvinte.add(nou);
+                            Collections.sort(listaCuvinte);
+                            pw.println("Cuvantul \"" + vechi + "\" a fost inlocuit cu \"" + nou + "\".");
+                        } else {
+                            pw.println("Cuvantul \"" + vechi + "\" nu exista in lista.");
+                        }
+                    }
+                    pw.println(String.join(", ", listaCuvinte));
+                    pw.println("<END>");
+                    pw.flush();
+                    continue;
+                }
+
+
                 // --- 3️⃣ Cazul: Text normal, procesare ---
                 List<String> distincte = proceseazaText(textIn);
 
@@ -89,6 +138,15 @@ public class FirClient extends Thread {
                     }
                 }
                 Collections.sort(listaCuvinte);
+
+
+                // Obținem info despre client
+                String clientInfo = cs.getInetAddress().getHostAddress() + ":" + cs.getPort();
+
+                //Trimitem la server:
+                System.out.println("Clientul " + clientInfo + " a adăugat:");
+                System.out.println("Lista de cuvinte actualizată (" + listaCuvinte.size() + "):");
+                System.out.println(String.join(", ", listaCuvinte));
 
                 // Trimitem rezultatul clientului
                 if (listaCuvinte.isEmpty()) {
