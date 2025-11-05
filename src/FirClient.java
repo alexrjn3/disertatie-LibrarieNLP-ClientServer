@@ -1,4 +1,5 @@
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
@@ -17,7 +18,8 @@ public class FirClient extends Thread {
     private static Model model;
     private static Pipeline pipeline;
     public static List<String> listaCuvinte = Collections.synchronizedList(new ArrayList<>());
-
+    // Obținem info despre client
+    private String clientInfo;
     // Lista cuvintelor distincte pentru fiecare client
 
 
@@ -28,6 +30,7 @@ public class FirClient extends Thread {
             bfr = new BufferedReader(new InputStreamReader(cs.getInputStream()));
             String modelPath = "resources/romanian-ud-1.2-160523.udpipe";
             model = Model.load(modelPath);
+            clientInfo = cs.getInetAddress().getHostAddress() + ":" + cs.getPort();
             pipeline = new Pipeline(
                     model,               // modelul încărcat
                     "tokenize",          // tokenizare
@@ -55,8 +58,24 @@ public class FirClient extends Thread {
                 pw.flush();
             }
             for (;;) {
-                textIn = bfr.readLine();
-                if (textIn == null || textIn.equals("")) break;
+                try {
+                    textIn = bfr.readLine();
+                    if (textIn == null) {
+                        System.out.println("Clientul s-a deconectat neașteptat: " + clientInfo);
+                        break;
+                    }
+                    if (textIn.equals("")) {
+                        System.out.println("Clientul a trimis STOP și se deconectează: " + clientInfo);
+                        break;
+                    }
+                } catch (IOException e) {
+                    System.out.println("Clientul s-a deconectat brusc: " + clientInfo);
+                    break;
+                }
+                if (textIn == null || textIn.equals("")){
+                    System.out.println("Clientul s-a deconectat: " + clientInfo);
+                    break;
+                }
 
                 textIn = textIn.trim();
 
@@ -140,8 +159,7 @@ public class FirClient extends Thread {
                 Collections.sort(listaCuvinte);
 
 
-                // Obținem info despre client
-                String clientInfo = cs.getInetAddress().getHostAddress() + ":" + cs.getPort();
+
 
                 //Trimitem la server:
                 System.out.println("Clientul " + clientInfo + " a adăugat:");
@@ -160,6 +178,7 @@ public class FirClient extends Thread {
                 pw.flush();
             }
         } catch (Exception e) {
+            System.out.println("Clientul s-a deconectat: " + clientInfo);
             e.printStackTrace();
         }
     }
@@ -182,42 +201,30 @@ public class FirClient extends Thread {
         return dp[s1.length()][s2.length()];
     }
 
-    private static boolean suntSimilareLaFinal(String s1, String s2, int prag) {
-        s1 = s1.toLowerCase();
-        s2 = s2.toLowerCase();
-
-        // Ignorăm comparațiile între cuvinte scurte
-        if (s1.length() < 4 || s2.length() < 4) {
-            return false;
-        }
-
-        // Luăm partea de la final (ultimele 4 caractere)
-        int lungime = Math.min(4, Math.min(s1.length(), s2.length()));
-        String sfarsit1 = s1.substring(s1.length() - lungime);
-        String sfarsit2 = s2.substring(s2.length() - lungime);
-
-        // Calculăm distanța Levenshtein între sufixe
-        int dist = levenshtein(sfarsit1, sfarsit2);
-
-        return dist <= prag;
-    }
-
 
     private List<String> unificaFormeSimilare(List<String> cuvinte) {
         List<String> rezultat = new ArrayList<>();
         boolean[] vizitat = new boolean[cuvinte.size()];
-        int prag = 1; // distanță Levenshtein maximă
+        int prag = 2; // distanță Levenshtein maximă
 
         for (int i = 0; i < cuvinte.size(); i++) {
             if (vizitat[i]) continue;
 
             String baza = cuvinte.get(i);
+            if (baza.length() <= 2) {
+                // Adaugă direct în rezultat, nu comparăm
+                rezultat.add(baza);
+                vizitat[i] = true;
+                continue;
+            }
             List<String> grup = new ArrayList<>();
             grup.add(baza);
             vizitat[i] = true;
 
             for (int j = i + 1; j < cuvinte.size(); j++) {
-                if (!vizitat[j] && suntSimilareLaFinal(baza, cuvinte.get(j), prag)) {
+                String compara = cuvinte.get(j);
+                if (compara.length() <= 2) continue;
+                if (!vizitat[j] && levenshtein(baza, cuvinte.get(j)) <= prag) {
                     grup.add(cuvinte.get(j));
                     vizitat[j] = true;
                 }
