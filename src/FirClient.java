@@ -182,6 +182,27 @@ public class FirClient extends Thread {
         return dp[s1.length()][s2.length()];
     }
 
+    private static boolean suntSimilareLaFinal(String s1, String s2, int prag) {
+        s1 = s1.toLowerCase();
+        s2 = s2.toLowerCase();
+
+        // Ignorăm comparațiile între cuvinte scurte
+        if (s1.length() < 4 || s2.length() < 4) {
+            return false;
+        }
+
+        // Luăm partea de la final (ultimele 4 caractere)
+        int lungime = Math.min(4, Math.min(s1.length(), s2.length()));
+        String sfarsit1 = s1.substring(s1.length() - lungime);
+        String sfarsit2 = s2.substring(s2.length() - lungime);
+
+        // Calculăm distanța Levenshtein între sufixe
+        int dist = levenshtein(sfarsit1, sfarsit2);
+
+        return dist <= prag;
+    }
+
+
     private List<String> unificaFormeSimilare(List<String> cuvinte) {
         List<String> rezultat = new ArrayList<>();
         boolean[] vizitat = new boolean[cuvinte.size()];
@@ -196,7 +217,7 @@ public class FirClient extends Thread {
             vizitat[i] = true;
 
             for (int j = i + 1; j < cuvinte.size(); j++) {
-                if (!vizitat[j] && levenshtein(baza, cuvinte.get(j)) <= prag) {
+                if (!vizitat[j] && suntSimilareLaFinal(baza, cuvinte.get(j), prag)) {
                     grup.add(cuvinte.get(j));
                     vizitat[j] = true;
                 }
